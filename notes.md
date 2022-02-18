@@ -228,3 +228,21 @@ This notes file documents the following of the [polls app tutorial](https://docs
     >>> Question.objects.filter(choice__choice_text__startswith="Co")
     <QuerySet [<Question: Whats good?>, <Question: Whats good?>]>
     ```
+
+## Introducing the Django Admin
+- Create a superuser; `$ python manage.py createsuperuser`
+- With a running dev server go to `http://127.0.0.1:8000/admin`
+- The *Groups* and *Users* content is provided by `django.contrib.auth`
+- To view our polls models we need to add them;
+    ```python
+    # polls/admin.py
+
+    from django.contrib import admin
+
+    from .models import Choice, Question
+
+
+    admin.site.register(Question)
+    admin.site.register(Choice)
+    ```
+- Now we have nice GUI for managing the polls app models
