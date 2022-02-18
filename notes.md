@@ -119,3 +119,112 @@ This notes file documents the following of the [polls app tutorial](https://docs
 - Apply new migrations `$ python migrate.py migrate`
 - Why are these processes separate?
     - Allows for new migration files (polls\migrations\0001_initial.py) to be added to vcs
+
+## Playing with the API
+- Use the built-in shell to update python path correctly; `$ python manage.py shell`
+- We get a ORM to interact with the underlying database
+    ```python
+    >>> from polls.models import Question, Choice
+    >>> from django.utils import timezone
+    >>> q = Question(question_text="Whats good?", pub_date=timezone.now())
+    >>> q.save()  # Writes changes
+    >>> q.id
+    1
+    >>> q.question_text
+    "Whats good?"
+    >>> # Update field/attribute values
+    >>> q.question_text = "Whats new?"
+    >>> q.save()
+    >>> # Display all question objects
+    >>> Question.objects.all()
+    <QuerySet [<Question: Question object (1)>]>
+    ```
+- Because models are objects, we can define functions/methods for them
+    - It's good practice to add `__str__` methods to models for readability
+    - For our models, this could be as simple as returning the text
+        ```python
+        # polls/models.py
+
+        from django.db import models
+
+
+        class Question(models.Models):
+
+            ...
+
+            def __str__(self) -> str:
+                return self.question_text
+        ```
+    - We can also add any number of utility methods
+        ```python
+        # polls/models.py
+
+        import datetime 
+
+        from django.db import models
+        from django.utils import timezone
+
+
+        class Question(models.Model):
+            
+            ...
+
+            def was_published_recently(self) -> bool:
+                """Return if published within the last day."""
+                # Note the use of timezone.now() not datetime.now()
+                return self.pub_date >= timezone.now() - datetime.timedelta(days=1)
+        ```
+- Lets have a closer look at some API functionality
+    ```python
+    >>> from polls.models import Choice, Question
+    >>> Question.objects.all()
+    <QuerySet [<Question: Whats good?>]> # __str__ works.
+    >>> # Filter Question table by an id
+    >>> Question.objects.filter(id=1)
+    <QuerySet [<Question: Whats good?>]>
+    >>> # Filter Question table by a pattern
+    >>> Question.objects.filter(question_text__startswith="What")
+    <QuerySet [<Question: Whats good?>]>
+    >>> from django.utils import timezone
+    >>> current_year = timezone.now().year
+    >>> Question.objects.filter(pub_date__year=current_year)
+    <QuerySet [<Question: Whats good?>]>
+    >>> # Primary key look-up is most common
+    >>> q = Question.objects.get(pk=1)
+    >>> q
+    <QuerySet [<Question: Whats good?>]>
+    >>> # Return all choice objects related to question -- currently none
+    >>> q.choice_set.all()
+    <QuerySet []>
+    >>> # Create some choices
+    >>> q.choice_set.create(choice_text="Pizza", votes=0)
+    <Choice: Pizza>
+    >>> q.choice_set.create(choice_text="Coffee", votes=0)
+    <Choice: Coffee>
+    >>> c = q.choice_set.create(choice_text="Cats", votes=0)
+    >>> c
+    <Choice: Cats>
+    >>> # Access question from choice
+    >>> c.question
+    <Question: Whats good?>
+    >>> # Question now has related choices
+    >>> q.choice_set.all()
+    <QuerySet [<Choice: Pizza>, <Choice: Coffee>, <Choice: Cats>]>
+    >>> q.choice_set.count()
+    3
+    >>> # API follows relationships without limitations.
+    >>> # From Choice we can filter to find all choices for all questions whose
+    >>> # publication date is the current year.
+    >>> # Use dunder scores to separate relationships.
+    >>> Choice.objects.filter(question__pub_date__year=current_year)
+    <QuerySet [<Choice: Pizza>, <Choice: Coffee>, <Choice: Cats>]>
+    >>> # Select and delete a choice
+    >>> c = Choice.objects.filter(choice_text__startswith="Pizza")
+    >>> c.delete()
+    ```
+    ```python
+    >>> # Note how this filter returns the same Question twice.
+    >>> # One for each Choice matching the filter query.
+    >>> Question.objects.filter(choice__choice_text__startswith="Co")
+    <QuerySet [<Question: Whats good?>, <Question: Whats good?>]>
+    ```
